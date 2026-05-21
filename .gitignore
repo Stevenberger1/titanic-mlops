@@ -13,6 +13,7 @@ wheels/
 models/*.pkl
 models/*.joblib
 models/*.onnx
+models/metrics.json
 mlruns/
 mlflow.db
 

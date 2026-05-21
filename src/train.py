@@ -157,8 +157,14 @@ def main() -> None:
     cfg = load_config(args.config)
 
     mlflow.set_experiment(EXPERIMENT_NAME)
-    with mlflow.start_run() as run:
+    run_name = (
+        f"depth{cfg.model.params.max_depth}"
+        f"-est{cfg.model.params.n_estimators}"
+        f"-lr{cfg.model.params.learning_rate}"
+    )
+    with mlflow.start_run(run_name=run_name) as run:
         print(f"MLflow run id: {run.info.run_id}")
+        print(f"MLflow run name: {run_name}")
         mlflow.log_artifact(str(args.config))
         train(cfg)
 
