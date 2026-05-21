@@ -1,0 +1,43 @@
+# configs/xgb.yaml
+# Hyperparameters and training settings for the XGBoost baseline.
+# Edit this file to run a new experiment without changing Python code.
+
+model:
+  type: xgboost                  # which algorithm to train
+  params:
+    n_estimators: 200            # number of boosted trees
+    max_depth: 4                 # tree depth — controls model complexity
+    learning_rate: 0.05          # step size for each tree
+    objective: binary:logistic   # binary classification, output probability
+    eval_metric: logloss         # what xgboost optimizes internally
+    random_state: 42             # reproducibility for the model
+
+training:
+  test_size: 0.2                 # 20% of data held out for evaluation
+  random_state: 42               # reproducibility for the train/test split
+  stratify: true                 # keep Survived class balance in both splits
+
+data:
+  raw_path: data/raw/Titanic-Dataset.csv # relative path = reproducible across machines
+  target_column: Survived        # the label we predict
+  id_column: PassengerId         # not a feature; dropped during training
+
+features:
+  numeric:
+    - Age
+    - SibSp
+    - Parch
+    - Fare
+  categorical:
+    - Pclass
+    - Sex
+    - Embarked
+  drop:
+    - Name
+    - Ticket
+    - Cabin
+
+paths:
+  artifact_dir: models           # where to save artifact.pkl + metrics.json
+  artifact_name: artifact.pkl
+  metrics_name: metrics.json
