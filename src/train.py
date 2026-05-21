@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
+import mlflow
 import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
@@ -31,6 +32,8 @@ from xgboost import XGBClassifier
 
 from src.config import AppConfig, load_config
 from src.preprocessing import build_preprocessor, split_xy
+
+EXPERIMENT_NAME = "titanic-xgb"
 
 
 def parse_args() -> argparse.Namespace:
@@ -59,7 +62,19 @@ def compute_metrics(y_true, y_pred, y_proba) -> dict[str, float]:
 
 
 def train(cfg: AppConfig) -> None:
-    """Run the full training pipeline."""
+    """Run the full training pipeline.
+
+    Assumes an MLflow run is already active (started by main()).
+    """
+
+    # 0. Log hyperparameters to the active MLflow run
+    mlflow.log_params(cfg.model.params.model_dump())
+    mlflow.log_param("test_size", cfg.training.test_size)
+    mlflow.log_param("random_state", cfg.training.random_state)
+    mlflow.log_param("stratify", cfg.training.stratify)
+    mlflow.log_param("raw_path", str(cfg.data.raw_path))
+    mlflow.log_param("n_numeric_features", len(cfg.features.numeric))
+    mlflow.log_param("n_categorical_features", len(cfg.features.categorical))
 
     # 1. Load raw data
     print(f"Loading data from {cfg.data.raw_path} ...")
@@ -102,6 +117,9 @@ def train(cfg: AppConfig) -> None:
     for name, value in metrics.items():
         print(f"  {name}: {value:.4f}")
 
+    # Log metrics to the active MLflow run
+    mlflow.log_metrics(metrics)
+
     # 7. Build the artifact bundle (everything app/main.py will need)
     artifact = {
         "model": model,
@@ -129,11 +147,20 @@ def train(cfg: AppConfig) -> None:
     print(f"\nArtifact saved to: {artifact_path}")
     print(f"Metrics saved to:  {metrics_path}")
 
+    # Also log them as MLflow artifacts (a versioned per-run copy)
+    mlflow.log_artifact(str(artifact_path))
+    mlflow.log_artifact(str(metrics_path))
+
 
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
-    train(cfg)
+
+    mlflow.set_experiment(EXPERIMENT_NAME)
+    with mlflow.start_run() as run:
+        print(f"MLflow run id: {run.info.run_id}")
+        mlflow.log_artifact(str(args.config))
+        train(cfg)
 
 
 if __name__ == "__main__":

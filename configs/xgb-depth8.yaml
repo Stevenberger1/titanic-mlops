@@ -1,13 +1,12 @@
-# Variant: deeper trees
-# Hypothesis: max_depth=8 (vs baseline 4) — does more capacity help or overfit?
-# Expected: training accuracy goes up, test accuracy maybe slightly drops.
-# Baseline reference: configs/xgb.yaml
+# configs/xgb.yaml
+# Hyperparameters and training settings for the XGBoost baseline.
+# Edit this file to run a new experiment without changing Python code.
 
 model:
   type: xgboost                  # which algorithm to train
   params:
     n_estimators: 200            # number of boosted trees
-    max_depth: 4                 # tree depth — controls model complexity
+    max_depth: 8                 # tree depth — controls model complexity
     learning_rate: 0.05          # step size for each tree
     objective: binary:logistic   # binary classification, output probability
     eval_metric: logloss         # what xgboost optimizes internally
