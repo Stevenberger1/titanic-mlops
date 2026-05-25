@@ -1,0 +1,54 @@
+# Keep the build context lean. Anything listed here is NOT sent to the
+# Docker daemon when running `docker build`, which speeds up builds and
+# prevents secrets / bulky local state from accidentally landing in the
+# image.
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Python bytecode / caches
+__pycache__/
+*.py[oc]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual env (we install fresh inside the image)
+.venv/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local MLflow store — NEVER copy this into the image. The whole point of
+# scripts/export_production_model.py is to avoid baking in absolute paths
+# from the dev machine. The exported, relocatable artifact lives at
+# models/exported/ and is copied explicitly in the Dockerfile.
+mlruns/
+mlflow.db
+
+# Local model artifacts that don't belong in the image. We only ship
+# models/exported/; everything else in models/ is dev-only.
+models/artifact.pkl
+models/metrics.json
+
+# Data — raw inputs aren't needed at serving time
+data/
+
+# Secrets / local config
+.env
+.env.local
+
+# Docs that don't need to be in the image
+README.md
+DOCKER.md
+.pre-commit-config.yaml
+
+# Scripts directory — only used at dev/build time, not by the running app
+scripts/

@@ -28,12 +28,14 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline as SklearnPipeline
 from xgboost import XGBClassifier
 
 from src.config import AppConfig, load_config
 from src.preprocessing import build_preprocessor, split_xy
 
 EXPERIMENT_NAME = "titanic-xgb"
+REGISTERED_MODEL_NAME = "titanic-classifier"
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,6 +48,15 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         required=True,
         help="Path to the YAML training config (e.g. configs/xgb.yaml).",
+    )
+    parser.add_argument(
+        "--register",
+        action="store_true",
+        help=(
+            "Register the trained model in the MLflow Model Registry as a "
+            f"new version of '{REGISTERED_MODEL_NAME}'. Use this only when "
+            "the run produces a model that's a deployment candidate."
+        ),
     )
     return parser.parse_args()
 
@@ -61,10 +72,13 @@ def compute_metrics(y_true, y_pred, y_proba) -> dict[str, float]:
     }
 
 
-def train(cfg: AppConfig) -> None:
+def train(cfg: AppConfig, register: bool = False) -> None:
     """Run the full training pipeline.
 
     Assumes an MLflow run is already active (started by main()).
+
+    If register=True, the trained model is also registered in the MLflow
+    Model Registry as a new version of REGISTERED_MODEL_NAME.
     """
 
     # 0. Log hyperparameters to the active MLflow run
@@ -151,6 +165,24 @@ def train(cfg: AppConfig) -> None:
     mlflow.log_artifact(str(artifact_path))
     mlflow.log_artifact(str(metrics_path))
 
+    # 9. Log the model via the sklearn flavor — this is what's required for
+    #    the MLflow 3.x Model Registry. We bundle the fitted preprocessor
+    #    and the trained classifier into a single sklearn Pipeline so that
+    #    inference uses the exact same preprocessing as training.
+    inference_pipeline = SklearnPipeline(
+        steps=[
+            ("preprocessor", preprocessor),
+            ("classifier", model),
+        ]
+    )
+    mlflow.sklearn.log_model(
+        sk_model=inference_pipeline,
+        name="model",
+        registered_model_name=REGISTERED_MODEL_NAME if register else None,
+    )
+    if register:
+        print(f"\nRegistered new version of '{REGISTERED_MODEL_NAME}'")
+
 
 def main() -> None:
     args = parse_args()
@@ -166,7 +198,7 @@ def main() -> None:
         print(f"MLflow run id: {run.info.run_id}")
         print(f"MLflow run name: {run_name}")
         mlflow.log_artifact(str(args.config))
-        train(cfg)
+        train(cfg, register=args.register)
 
 
 if __name__ == "__main__":
